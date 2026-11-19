@@ -2,6 +2,8 @@
 // As bibliotecas pdfjsLib e Tesseract são carregadas pelo index.html.
 
 const LADO_MAX_IMAGEM = 2400;
+const LADO_MIN_IMAGEM = 1500;
+const LADO_AMPLIADO = 2000;
 const MAX_PAGINAS_TEXTO = 5;
 const LADO_MAX_PAGINA_PDF = 3500;
 
@@ -76,7 +78,10 @@ export async function renderizarPaginas(dados, ext, maxPaginas, dpi) {
   }
 
   const bitmap = await createImageBitmap(new Blob([dados]), { imageOrientation: "from-image" });
-  const reducao = Math.min(1, LADO_MAX_IMAGEM / Math.max(bitmap.width, bitmap.height));
+  const maior = Math.max(bitmap.width, bitmap.height);
+  // foto grande: reduz; imagem pequena (ex.: recorte de CNH): amplia, porque o OCR erra letras minúsculas
+  const alvo = maior > LADO_MAX_IMAGEM ? LADO_MAX_IMAGEM : maior < LADO_MIN_IMAGEM ? LADO_AMPLIADO : maior;
+  const reducao = alvo / maior;
   const canvas = novoCanvas(bitmap.width * reducao, bitmap.height * reducao);
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#ffffff"; // PNG com transparência vira fundo branco
@@ -96,6 +101,40 @@ export function rotacionar(canvas, graus) {
   ctx.rotate((graus * Math.PI) / 180);
   ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
   return r;
+}
+
+/**
+ * Prepara a imagem para o OCR: tons de cinza e contraste esticado (1% mais escuro vira preto,
+ * 1% mais claro vira branco). Ajuda em fotos e scans cinzentos ou com pouca luz.
+ */
+export function preparar(canvas) {
+  const w = canvas.width;
+  const h = canvas.height;
+  const img = canvas.getContext("2d").getImageData(0, 0, w, h);
+  const d = img.data;
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < d.length; i += 4) {
+    const g = ((d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000) | 0;
+    d[i] = g;
+    hist[g] += 1;
+  }
+  const total = w * h;
+  let lo = 0;
+  let acum = 0;
+  while (lo < 255 && acum + hist[lo] < total * 0.01) acum += hist[lo++];
+  let hi = 255;
+  acum = 0;
+  while (hi > 0 && acum + hist[hi] < total * 0.01) acum += hist[hi--];
+  const faixa = hi - lo;
+  for (let i = 0; i < d.length; i += 4) {
+    let v = d[i];
+    if (faixa >= 20) v = Math.max(0, Math.min(255, ((v - lo) * 255) / faixa));
+    d[i] = d[i + 1] = d[i + 2] = v;
+    d[i + 3] = 255;
+  }
+  const saida = novoCanvas(w, h);
+  saida.getContext("2d").putImageData(img, 0, 0);
+  return saida;
 }
 
 /** Envolve o Tesseract.js. O worker só é criado na primeira vez que o OCR é preciso. */
@@ -140,12 +179,20 @@ export class OCR {
     return this.disponivel;
   }
 
-  async ler(canvases, rotacao = 0) {
+  /**
+   * Lê as imagens. psm "3" = página inteira (padrão); "11" = texto esparso (melhor para cartões como a CNH).
+   * Retorna { texto, confianca } (confiança média do Tesseract, 0 a 100).
+   */
+  async ler(canvases, rotacao = 0, psm = "3") {
+    await this.worker.setParameters({ tessedit_pageseg_mode: psm });
     const partes = [];
+    const confs = [];
     for (const c of canvases) {
-      const r = await this.worker.recognize(rotacionar(c, rotacao));
+      const r = await this.worker.recognize(preparar(rotacionar(c, rotacao)));
       partes.push(r.data.text);
+      confs.push(r.data.confidence);
     }
-    return partes.join("\n");
+    const confianca = confs.length ? confs.reduce((a, b) => a + b, 0) / confs.length : 0;
+    return { texto: partes.join("\n"), confianca };
   }
 }

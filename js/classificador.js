@@ -39,6 +39,8 @@ export function compilarTipos(bruto) {
       nomeArquivo: d.nomeArquivo || chave,
       descricao: d.descricao || chave,
       pasta: d.pasta || "",
+      pessoa: d.pessoa || "",     // "conteudo" | "arquivo": o nome do arquivo leva " - nome da pessoa"
+      formato: d.formato || "",   // "nota": nome no formato "cultura - valor - ano"
       apelidos: new Set((d.apelidos || []).map(normalizar)),
       termos,
       exclui: (d.exclui || []).map((t) => compilarTermo(t, PENALIDADE_EXCLUI)),

@@ -37,7 +37,8 @@ export function validar(planejados, banco, tipos, confiancaOk = 0.5) {
 
   const pendencias = obrigatorios.filter((i) => !i.atendido).map((i) => `Falta: ${i.descricao}`);
 
-  const naoIdent = planejados.filter((d) => !d.tipo);
+  // Duplicados idênticos (removidos do ZIP) continuam valendo para o checklist, mas não geram aviso de "não identificado".
+  const naoIdent = planejados.filter((d) => !d.tipo && !d.removido);
   if (naoIdent.length) avisos.push(`${naoIdent.length} arquivo(s) não identificado(s) na pasta de revisão`);
   for (const i of obrigatorios) {
     if (i.atendido && i.baixaConfianca) avisos.push(`Baixa confiança na identificação de: ${i.descricao}. Confira.`);

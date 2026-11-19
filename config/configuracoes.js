@@ -5,6 +5,13 @@ export const configuracoes = {
   // Variáveis: {tipo} (ex.: RG, CAR) e {cliente}.  Ex.: "{tipo}"  ou  "{tipo} - {cliente}"
   padraoNome: "{tipo}",
 
+  // Padronização dos nomes dos ARQUIVOS (não vale para docs finais, que ficam como estão).
+  nomes: { minusculas: true, semAcento: true },
+
+  // Duplicados: arquivos IDÊNTICOS (byte a byte) são removidos do ZIP final.
+  // Arquivos só PARECIDOS (texto com esta similaridade ou mais) apenas geram aviso.
+  duplicados: { similaridadeMinima: 0.85 },
+
   // Nomes das pastas dentro do ZIP final.
   // raiz: "" = o arquivo fica solto na pasta do cliente (ex.: PEDIDO.pdf)
   pastas: {
@@ -26,7 +33,7 @@ export const configuracoes = {
   ocr: {
     idioma: "por",   // português
     paginasPdf: 2,   // quantas páginas de PDF escaneado ler com OCR
-    dpi: 200,
+    dpi: 250,        // resolução ao desenhar páginas de PDF escaneado para o OCR
   },
 
   limites: {

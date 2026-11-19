@@ -22,13 +22,24 @@ Nome do Cliente.zip
 Saída:
 ```
 Nome do Cliente/
-  docs pessoais/   TERMO BACEN.pdf, CNH.pdf, CAF.pdf, CND.pdf, COMPROVANTE DE RESIDENCIA.pdf ...
-  docs terreno/    CAR.pdf, CCIR.pdf, ITR.pdf, MATRICULA.pdf, CONTRATO DE COMODATO.pdf ...
-  NF/              NF.pdf, NF (2).pdf ...        (só se houver notas)
-  PEDIDO.pdf       (o pedido fica solto na pasta do cliente)
+  docs pessoais/   termo bacen.pdf, cnh - nome da pessoa.pdf, cnd - nome da pessoa.pdf, caf.pdf ...
+  docs terreno/    car.pdf, ccir.pdf, itr.pdf, matricula.pdf, contrato de comodato.pdf ...
+  NF/              leite - r$ 15.000,00 - 2025.pdf, soja - r$ 100.000,00 - 2026.pdf ...   (só se houver notas)
+  pedido.pdf       (o pedido fica solto na pasta do cliente)
   docs finais/     arquivos da pasta ignorada, sem mudanças (só se houver)
   _REVISAR/        arquivos que o sistema não identificou (só se houver)
 ```
+Regras dos nomes:
+- Tudo em **minúsculas e sem acento** (menos os arquivos de `docs finais`, que ficam como estão).
+- O sistema primeiro descobre **qual é o documento** (pelo conteúdo, não pelo nome do arquivo) e depois **de quem é**.
+  Documento de pessoa vira `tipo - nome da pessoa` (o nome vem do conteúdo; se não achar, do nome original do arquivo;
+  você pode corrigir na coluna **Pessoa / detalhe**).
+- Notas fiscais: `cultura - r$ valor - ano`. O **mês** só entra (`... - 2026 - 03`) quando duas notas ficariam com o mesmo nome.
+  As culturas reconhecidas estão em `config/culturas.js`. Valor lido por OCR fica marcado para conferência.
+- **Duplicados:** arquivos **idênticos byte a byte** são removidos do ZIP final (a tela e o relatório listam quais).
+  Arquivos só **parecidos** (texto quase igual, mas com alguma diferença) **não são removidos**: aparece um aviso para você conferir.
+- Coluna **Texto lido** (botão "ver"): mostra o que o sistema leu em cada arquivo. Serve para entender por que algo não foi identificado.
+
 Além do ZIP, você baixa um relatório (CSV, abre no Excel) e um resumo da validação.
 
 ## Bancos cadastrados (config/bancos.js)
@@ -50,7 +61,7 @@ Não precisa de internet. Para publicar para outras pessoas, veja o **GITHUB.md*
 
 ## Primeiro teste (nesta ordem)
 
-1. Abra `http://localhost:8000/testes/`: deve mostrar "Todos os 30 testes passaram".
+1. Abra `http://localhost:8000/testes/`: deve mostrar "Todos os 44 testes passaram".
 2. Abra `http://localhost:8000/` e confira se a tela aparece sem erros (F12 > Console).
 3. Envie um ZIP **fictício** com PDFs de texto. Depois um com foto/PDF escaneado (testa o OCR; a primeira vez demora um pouco).
 4. Baixe o ZIP organizado e confira as pastas e os nomes.
@@ -75,6 +86,8 @@ js/analisador.js      fluxo: ZIP -> texto/OCR -> tipo
 js/zipLeitor.js       leitura do ZIP (JSZip)
 js/extrator.js        texto de PDF (pdf.js) e OCR (Tesseract.js)
 js/classificador.js   regras por palavras-chave
+js/extracao.js        nome da pessoa e dados da nota (cultura, valor, ano)
+js/duplicados.js      duplicados idênticos (removidos) e parecidos (aviso)
 js/organizador.js     nomes, pastas e ZIP final
 js/validador.js       exigências do banco
 js/relatorio.js       CSV e resumo
@@ -91,8 +104,10 @@ memoria.md            tudo que é preciso lembrar do projeto
 - O OCR do navegador é mais lento e um pouco menos preciso que o Tesseract instalado; as palavras-chave em
   `config/tipos.js` precisam de ajuste com documentos reais.
 - Só as 2 primeiras páginas de PDF escaneado passam por OCR (configurável).
-- O sistema avalia **um único conjunto de documentos** por ZIP: não separa comprador, cônjuge e avalista, e nomes
-  repetidos viram `CNH.pdf`, `CNH (2).pdf`.
+- O sistema avalia **um único conjunto de documentos** por ZIP: não separa comprador, cônjuge e avalista na validação
+  (os nomes dos arquivos já levam o nome da pessoa, mas o checklist do banco ainda não é por pessoa).
+- O nome da pessoa é "melhor esforço": em CNH/RG lidos por OCR pode falhar; corrija na coluna **Pessoa / detalhe**.
+- Duas fotos (frente e verso) do mesmo documento são tratadas como arquivos separados.
 - Ainda não confere datas (validade de comprovante, matrícula etc.), nem firma reconhecida.
 
 ## Próximos passos sugeridos

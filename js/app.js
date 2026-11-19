@@ -3,10 +3,13 @@
 import { configuracoes as cfg } from "../config/configuracoes.js";
 import { tipos as tiposBrutos } from "../config/tipos.js";
 import { bancos } from "../config/bancos.js";
+import { culturas } from "../config/culturas.js";
 import { compilarTipos } from "./classificador.js";
 import { processarZip } from "./analisador.js";
 import { ErroZip } from "./zipLeitor.js";
 import { OCR } from "./extrator.js";
+import { extrairPessoa, extrairNota } from "./extracao.js";
+import { marcarDuplicados, acharParecidos } from "./duplicados.js";
 import { planejar, arvoreTexto, gerarZip, caminhoDestino } from "./organizador.js";
 import { validar } from "./validador.js";
 import { csvBlob, resumoBlob } from "./relatorio.js";
@@ -17,11 +20,14 @@ const tipos = compilarTipos(tiposBrutos);
 const ocr = new OCR(cfg.ocr.idioma, (msg) => { $("proc-ocr").textContent = msg; });
 
 const estado = {
-  docs: [],            // resultado automático da análise
-  manual: new Map(),   // origem -> tipo escolhido pelo usuário (ou null)
-  plano: [],           // documentos com destino calculado
-  res: null,           // resultado da validação
-  linhas: new Map(),   // origem -> <tr>
+  docs: [],                  // resultado automático da análise
+  manual: new Map(),         // origem -> tipo escolhido pelo usuário (ou null)
+  detalheManual: new Map(),  // origem -> nome da pessoa / detalhe da nota digitado pelo usuário
+  cacheDetalhe: new Map(),   // "origem|tipo" -> detalhe lido do documento
+  plano: [],                 // documentos com destino calculado
+  parecidos: [],             // pares de possíveis duplicados
+  res: null,                 // resultado da validação
+  linhas: new Map(),         // origem -> <tr>
   ocupado: false,
 };
 
@@ -76,6 +82,33 @@ function mostrarResumoBanco() {
   $("lembretes").querySelector("ul").replaceChildren(...lembretes.map((t) => criar("li", "", t)));
 }
 
+/* ---------------------------------------------------------------- dados lidos do conteúdo */
+
+function usaDetalhe(tipoChave) {
+  const t = tipoChave ? tipos[tipoChave] : null;
+  return !!t && (!!t.pessoa || t.formato === "nota");
+}
+
+/** Nome da pessoa (RG, CNH...) ou "cultura - valor - ano" (NF) lido do documento. */
+function detalheAuto(d) {
+  if (!usaDetalhe(d.tipo)) return { detalhe: "", mes: "", aviso: "" };
+  const chave = `${d.origem}|${d.tipo}`;
+  if (estado.cacheDetalhe.has(chave)) return estado.cacheDetalhe.get(chave);
+  const t = tipos[d.tipo];
+  let r;
+  if (t.formato === "nota") {
+    const n = extrairNota(d.texto, d.origem, culturas);
+    const avisos = [n.aviso];
+    if (d.metodoTexto === "ocr") avisos.push("lido por OCR: confira o valor");
+    r = { detalhe: n.detalhe, mes: n.mes, aviso: avisos.filter(Boolean).join("; ") };
+  } else {
+    const nome = extrairPessoa(d.texto, d.origem, t.pessoa);
+    r = { detalhe: nome, mes: "", aviso: nome ? "" : "nome da pessoa não encontrado: preencha" };
+  }
+  estado.cacheDetalhe.set(chave, r);
+  return r;
+}
+
 /* ---------------------------------------------------------------- tabela */
 
 function preencherOpcoes(select, atual) {
@@ -90,6 +123,13 @@ function preencherOpcoes(select, atual) {
     select.append(g);
   }
   select.value = atual || "";
+}
+
+function textoLido(doc) {
+  const cab = [`Leitura: ${doc.metodoTexto === "ocr" ? "OCR" : doc.metodoTexto === "texto" ? "texto do PDF" : "nenhuma"}`];
+  if (doc.ocrConfianca !== undefined) cab.push(`confiança média do OCR: ${doc.ocrConfianca}%`);
+  const corpo = (doc.texto || "").trim();
+  return `${cab.join(" | ")}\n\n${corpo ? corpo.slice(0, 6000) : "(nenhum texto lido)"}`;
 }
 
 function montarTabela() {
@@ -113,15 +153,49 @@ function montarTabela() {
       const valor = sel.value || null;
       if (valor === doc.tipo) estado.manual.delete(doc.origem);
       else estado.manual.set(doc.origem, valor);
+      estado.detalheManual.delete(doc.origem); // outro tipo, outro detalhe
       atualizar();
     });
     tdTipo.append(sel);
     tr.append(tdTipo);
 
+    const tdDet = criar("td");
+    const inp = criar("input", "detalhe");
+    inp.type = "text";
+    inp.setAttribute("aria-label", `Pessoa ou detalhe de ${doc.origem}`);
+    inp.addEventListener("input", () => {
+      const auto = detalheAuto({ ...doc, tipo: estado.manual.has(doc.origem) ? estado.manual.get(doc.origem) : doc.tipo }).detalhe;
+      if (inp.value === auto) estado.detalheManual.delete(doc.origem);
+      else estado.detalheManual.set(doc.origem, inp.value);
+      atualizar();
+    });
+    tdDet.append(inp);
+    tr.append(tdDet);
+
     tr.append(criar("td", "novo"));
     tr.append(criar("td", "conf-celula"));
     tr.append(criar("td", "obs"));
+
+    // "ver texto lido": mostra o que o sistema enxergou no arquivo
+    const tdTxt = criar("td");
+    const botaoTxt = criar("button", "botao pequeno", "ver");
+    botaoTxt.type = "button";
+    tdTxt.append(botaoTxt);
+    tr.append(tdTxt);
     corpo.append(tr);
+
+    const trTxt = criar("tr", "texto-linha");
+    trTxt.hidden = true;
+    const celula = criar("td");
+    celula.colSpan = 7;
+    celula.append(criar("pre", "", textoLido(doc)));
+    trTxt.append(celula);
+    corpo.append(trTxt);
+    botaoTxt.addEventListener("click", () => {
+      trTxt.hidden = !trTxt.hidden;
+      botaoTxt.textContent = trTxt.hidden ? "ver" : "fechar";
+    });
+
     estado.linhas.set(doc.origem, tr);
   }
 }
@@ -135,30 +209,68 @@ function distintivoConfianca(d) {
 
 /* ---------------------------------------------------------------- cálculo e exibição */
 
+/** Documentos com as correções do usuário e com pessoa/detalhe, mês e aviso preenchidos (cópias). */
 function docsFinais() {
   return estado.docs.map((d) => {
-    if (!estado.manual.has(d.origem)) return d;
-    const tipo = estado.manual.get(d.origem);
-    return { ...d, tipo, confianca: tipo ? 1 : 0, metodo: tipo ? "manual" : "nenhum", observacao: "Ajustado manualmente" };
+    let f = { ...d };
+    if (estado.manual.has(d.origem)) {
+      const tipo = estado.manual.get(d.origem);
+      f = { ...f, tipo, confianca: tipo ? 1 : 0, metodo: tipo ? "manual" : "nenhum", observacao: "Ajustado manualmente" };
+    }
+    const info = detalheAuto(f);
+    f.detalheAuto = info.detalhe;
+    f.mes = info.mes;
+    f.avisoDetalhe = info.aviso;
+    f.detalheDigitado = estado.detalheManual.has(d.origem);
+    f.detalhe = f.detalheDigitado ? estado.detalheManual.get(d.origem) : info.detalhe;
+    return f;
   });
 }
 
 function atualizar() {
   const cliente = $("cliente").value.trim() || "Cliente";
-  estado.plano = planejar(docsFinais(), cfg, tipos, cliente);
+  const finais = docsFinais();
+  marcarDuplicados(finais);
+  estado.parecidos = acharParecidos(finais, cfg.duplicados.similaridadeMinima);
+  estado.plano = planejar(finais, cfg, tipos, cliente);
   estado.cliente = cliente;
   estado.res = validar(estado.plano, bancos[$("banco").value], tipos, cfg.limites.confiancaMinimaOk);
+
+  const parecidoCom = new Map();
+  for (const p of estado.parecidos) {
+    const pct = Math.round(p.similaridade * 100);
+    if (!parecidoCom.has(p.a)) parecidoCom.set(p.a, `${p.b} (${pct}%)`);
+    if (!parecidoCom.has(p.b)) parecidoCom.set(p.b, `${p.a} (${pct}%)`);
+  }
 
   for (const d of estado.plano) {
     const tr = estado.linhas.get(d.origem);
     if (!tr) continue;
-    tr.classList.toggle("revisar", !d.tipo && !d.ignorar);
-    tr.querySelector(".novo").textContent = caminhoDestino(d);
+    const precisaNome = usaDetalhe(d.tipo);
+    tr.classList.toggle("revisar", !d.tipo && !d.ignorar && !d.removido);
+    tr.classList.toggle("removido", !!d.removido);
+
+    const inp = tr.querySelector("input.detalhe");
+    inp.disabled = !precisaNome || !!d.removido;
+    inp.placeholder = !precisaNome ? "" : tipos[d.tipo].formato === "nota" ? "cultura - r$ valor - ano" : "nome da pessoa";
+    if (document.activeElement !== inp) inp.value = precisaNome ? d.detalhe : "";
+
+    tr.querySelector(".novo").textContent = d.removido ? "(removido: duplicado)" : caminhoDestino(d);
     tr.querySelector(".conf-celula").replaceChildren(distintivoConfianca(d));
-    tr.querySelector(".obs").textContent = d.observacao;
+
+    const obs = [];
+    if (d.observacao && !(d.tipo && d.observacao === "Tipo não reconhecido")) obs.push(d.observacao);
+    if (precisaNome && !d.removido) {
+      if (!d.detalhe) obs.push(d.avisoDetalhe || "preencha a coluna Pessoa / detalhe");
+      else if (d.avisoDetalhe && !d.detalheDigitado) obs.push(d.avisoDetalhe);
+    }
+    if (d.removido) obs.push(`Idêntico a ${d.duplicadoDe}: não vai para o ZIP`);
+    if (parecidoCom.has(d.origem)) obs.push(`Parecido com ${parecidoCom.get(d.origem)}: confira`);
+    tr.querySelector(".obs").textContent = obs.join(" · ");
   }
 
   renderChips();
+  renderDuplicados();
   renderValidacao();
   $("arvore").textContent = arvoreTexto(estado.plano, cliente);
 }
@@ -166,14 +278,41 @@ function atualizar() {
 function renderChips() {
   const analisados = estado.plano.filter((d) => !d.ignorar);
   const ignorados = estado.plano.length - analisados.length;
-  const nao = analisados.filter((d) => !d.tipo).length;
+  const nao = analisados.filter((d) => !d.tipo && !d.removido).length;
+  const removidos = analisados.filter((d) => d.removido).length;
+  const semNome = analisados.filter((d) => usaDetalhe(d.tipo) && !d.removido && !d.detalhe).length;
   const chips = $("chips");
   chips.replaceChildren(
     criar("span", "chip", `${analisados.length} arquivo(s)`),
-    criar("span", "chip", `${analisados.length - nao} identificado(s)`),
+    criar("span", "chip", `${analisados.length - nao - removidos} identificado(s)`),
   );
   if (nao) chips.append(criar("span", "chip alerta", `${nao} para revisar`));
+  if (semNome) chips.append(criar("span", "chip alerta", `${semNome} sem nome/detalhe`));
+  if (removidos) chips.append(criar("span", "chip", `${removidos} duplicado(s) removido(s)`));
   if (ignorados) chips.append(criar("span", "chip", `${ignorados} em docs finais (não analisados)`));
+}
+
+function renderDuplicados() {
+  const removidos = estado.plano.filter((d) => d.removido);
+  const caixa = $("duplicados");
+  const blocos = [];
+  if (removidos.length) {
+    const b = criar("div", "dup-bloco");
+    b.append(criar("h3", "", "Duplicados idênticos (byte a byte) removidos do ZIP"));
+    const ul = criar("ul");
+    for (const d of removidos) ul.append(criar("li", "", `${d.origem}  (igual a ${d.duplicadoDe})`));
+    b.append(ul);
+    blocos.push(b);
+  }
+  if (estado.parecidos.length) {
+    const b = criar("div", "dup-bloco aviso");
+    b.append(criar("h3", "", "Possíveis duplicados: diferem em algo, nada foi removido. Confira"));
+    const ul = criar("ul");
+    for (const p of estado.parecidos) ul.append(criar("li", "", `${p.a}  e  ${p.b}  (${Math.round(p.similaridade * 100)}% parecidos)`));
+    b.append(ul);
+    blocos.push(b);
+  }
+  caixa.replaceChildren(...blocos);
 }
 
 function itemChecklist(item, opcional) {
@@ -229,6 +368,8 @@ async function tratarArquivo(arquivo) {
     });
     estado.docs = docs;
     estado.manual.clear();
+    estado.detalheManual.clear();
+    estado.cacheDetalhe.clear();
     $("cliente").value = cliente;
     montarTabela();
     atualizar();
@@ -247,7 +388,10 @@ async function tratarArquivo(arquivo) {
 function novoCliente() {
   estado.docs = [];
   estado.manual.clear();
+  estado.detalheManual.clear();
+  estado.cacheDetalhe.clear();
   estado.plano = [];
+  estado.parecidos = [];
   estado.linhas.clear();
   $("tabela").querySelector("tbody").replaceChildren();
   $("resultado").hidden = true;
@@ -299,8 +443,13 @@ function ligarEventos() {
   });
   $("baixar-csv").addEventListener("click", () =>
     baixar(csvBlob(estado.plano), `${sanitizar(estado.cliente)} - relatorio.csv`));
-  $("baixar-resumo").addEventListener("click", () =>
-    baixar(resumoBlob(estado.cliente, estado.res), `${sanitizar(estado.cliente)} - validacao.txt`));
+  $("baixar-resumo").addEventListener("click", () => {
+    const extras = {
+      removidos: estado.plano.filter((d) => d.removido).map((d) => ({ origem: d.origem, duplicadoDe: d.duplicadoDe })),
+      parecidos: estado.parecidos,
+    };
+    baixar(resumoBlob(estado.cliente, estado.res, extras), `${sanitizar(estado.cliente)} - validacao.txt`);
+  });
 }
 
 iniciarBancos();

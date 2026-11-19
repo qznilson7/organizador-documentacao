@@ -19,6 +19,18 @@ export function sanitizar(nome, limite = 120) {
   return limpo.slice(0, limite) || "sem_nome";
 }
 
+/** Tira os acentos (mantém maiúsculas/minúsculas). */
+export function semAcentos(texto) {
+  return String(texto).normalize("NFKD").replace(/[̀-ͯ]/g, "");
+}
+
+/** Impressão digital (SHA-256) do conteúdo; "" se o navegador não oferecer (ex.: abrir por file://). */
+export async function sha256Hex(buffer) {
+  if (!globalThis.crypto || !globalThis.crypto.subtle) return "";
+  const h = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -7,6 +7,9 @@
 //                 forte = 3 pontos | medio = 2 pontos | fraco = 1 ponto
 //                 Para expressão regular, use uma regex JS: /padrao/
 // exclui:       termos que, se aparecerem, descontam 3 pontos (evita confusão entre tipos)
+// pessoa:       "conteudo" = o nome do arquivo leva " - nome da pessoa", lido do documento e, se não achar, do
+//               nome original do arquivo. "arquivo" = só do nome original do arquivo (ou digitado na tela).
+// formato:      "nota" = nome no formato "cultura - r$ valor - ano" (só a NF usa)
 //
 // O documento é aceito com 3+ pontos e pelo menos 1 ponto de vantagem sobre o 2º colocado.
 // Para ensinar um novo documento ao sistema, copie um bloco e ajuste.
@@ -17,11 +20,12 @@ export const tipos = {
   RG: {
     nomeArquivo: "RG",
     descricao: "RG - Registro Geral / Identidade",
+    pessoa: "conteudo",
     pasta: "pessoais",
     apelidos: ["rg", "identidade"],
     palavras: {
-      forte: ["registro geral", "carteira de identidade", "carteira de identidade nacional", "instituto de identificacao", "secretaria de seguranca publica"],
-      medio: ["data de expedicao", "orgao expedidor", "naturalidade"],
+      forte: ["registro geral", "carteira de identidade", "carteira de identidade nacional", "cedula de identidade", "instituto de identificacao", "secretaria de seguranca publica"],
+      medio: ["data de expedicao", "orgao expedidor", "naturalidade", "instituto geral de pericias", "assinatura do titular"],
       fraco: ["filiacao", "doc origem"],
     },
     exclui: ["carteira nacional de habilitacao"],
@@ -30,18 +34,23 @@ export const tipos = {
   CNH: {
     nomeArquivo: "CNH",
     descricao: "CNH - Carteira Nacional de Habilitação",
+    pessoa: "conteudo",
     pasta: "pessoais",
     apelidos: ["cnh", "habilitacao"],
     palavras: {
+      // A CNH tem muitos rótulos pequenos; o OCR costuma errar alguns, por isso há várias pistas médias.
       forte: ["carteira nacional de habilitacao", "permissao para dirigir"],
-      medio: ["registro nacional", "cat hab", "primeira habilitacao", "detran"],
-      fraco: ["observacoes", "validade"],
+      medio: ["registro nacional", "cat hab", "cat. hab", "primeira habilitacao", "1a habilitacao", "detran", "denatran", "senatran", "contran",
+              "secretaria nacional de transito", "departamento nacional de transito", "ministerio dos transportes", "doc identidade",
+              "assinatura do portador", "assinatura do emissor", "data emissao"],
+      fraco: ["habilitacao"],
     },
   },
 
   CPF: {
     nomeArquivo: "CPF",
     descricao: "CPF - Cadastro de Pessoas Físicas",
+    pessoa: "conteudo",
     pasta: "pessoais",
     apelidos: ["cpf"],
     palavras: {
@@ -55,6 +64,7 @@ export const tipos = {
   CERTIDAO_CASAMENTO: {
     nomeArquivo: "CERTIDAO DE CASAMENTO",
     descricao: "Certidão de casamento",
+    pessoa: "arquivo", // cita duas pessoas: o nome só vem do nome do arquivo ou da sua digitação
     pasta: "pessoais",
     apelidos: ["casamento", "certidao"],
     palavras: {
@@ -67,6 +77,7 @@ export const tipos = {
   CERTIDAO_NASCIMENTO: {
     nomeArquivo: "CERTIDAO DE NASCIMENTO",
     descricao: "Certidão de nascimento",
+    pessoa: "conteudo",
     pasta: "pessoais",
     apelidos: ["nascimento"],
     palavras: {
@@ -79,6 +90,7 @@ export const tipos = {
   COMPROVANTE_RESIDENCIA: {
     nomeArquivo: "COMPROVANTE DE RESIDENCIA",
     descricao: "Comprovante de residência",
+    pessoa: "arquivo", // o titular da conta pode ser outra pessoa: só nome do arquivo ou digitação
     pasta: "pessoais",
     apelidos: ["residencia", "endereco", "comprovante"],
     palavras: {
@@ -91,6 +103,7 @@ export const tipos = {
   DECLARACAO_IR: {
     nomeArquivo: "IR",
     descricao: "Declaração de Imposto de Renda",
+    pessoa: "conteudo",
     pasta: "pessoais",
     apelidos: ["ir", "irpf", "imposto"],
     palavras: {
@@ -202,6 +215,7 @@ export const tipos = {
   CND: {
     nomeArquivo: "CND",
     descricao: "CND - Certidão negativa de débitos",
+    pessoa: "conteudo",
     pasta: "pessoais",
     apelidos: ["cnd"],
     palavras: {
@@ -361,6 +375,7 @@ export const tipos = {
   NF: {
     nomeArquivo: "NF",
     descricao: "Nota fiscal de venda",
+    formato: "nota", // nome do arquivo: "cultura - r$ valor - ano" (config/culturas.js)
     pasta: "nf",
     apelidos: ["nf", "nfe", "danfe", "nota"],
     palavras: {
