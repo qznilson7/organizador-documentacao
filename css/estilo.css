@@ -204,6 +204,67 @@ pre { background: var(--fundo); border: 1px solid var(--borda); border-radius: 8
 
 .rodape { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 0 28px; }
 
+/* ---------- menu inicial e navegação ---------- */
+.topo-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+a.botao.voltar { display: inline-block; text-decoration: none; font-size: 14px; }
+a.botao.voltar:focus-visible, .cartao-menu:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.menu {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px;
+  max-width: 980px; margin: 0 auto; padding: 48px 28px 32px;
+}
+.cartao-menu {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+  background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio);
+  padding: 24px; text-decoration: none; color: var(--texto);
+  transition: border-color .15s, background .15s;
+}
+.cartao-menu:hover { border-color: var(--acento); background: var(--acento-fundo); }
+.cartao-menu .icone {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; border-radius: var(--raio);
+  background: var(--acento-fundo); color: var(--acento);
+}
+.cartao-menu:hover .icone { background: var(--cartao); }
+.cartao-menu strong { font-size: 17px; font-weight: 600; }
+.cartao-menu .descricao { font-size: 14px; color: var(--muted); }
+.cartao-menu em { margin-top: auto; padding-top: 6px; font-style: normal; font-weight: 600; font-size: 14px; color: var(--acento); }
+
+/* ---------- calcular hectares ---------- */
+.pagina { display: flex; flex-direction: column; gap: 18px; max-width: 1180px; margin: 0 auto; padding: 24px 28px; }
+.opcoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.botao.ativo, .botao.ativo:hover { background: var(--acento); color: var(--on-acento); border-color: var(--acento); }
+#bloco-posse { margin-top: 14px; }
+.dropzone.compacta { padding: 18px 20px; }
+.dropzone.compacta svg { display: none; }
+td input.area { width: 120px; text-align: right; padding: 5px 8px; font-size: 13px; }
+td input.area.invalido { border-color: var(--erro); }
+td input.area:disabled { opacity: .5; }
+tr.nao-soma td { color: var(--muted); }
+td.pessoas div { min-width: 220px; }
+td.botoes { white-space: nowrap; }
+td.botoes .botao + .botao { margin-left: 6px; }
+.dica { margin-top: 10px; }
+.avisos { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+#por-pessoa { margin-top: 16px; max-width: 520px; }
+#por-pessoa td:last-child { text-align: right; white-space: nowrap; font-weight: 600; }
+#resultado > .acoes, #calculo #resultado .acoes { margin-top: 16px; }
+.totais { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.metrica { background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); padding: 14px 18px; }
+.metrica.ativa { background: var(--acento-fundo); border-color: var(--acento); }
+.metrica span { display: block; font-size: 13px; color: var(--muted); }
+.metrica strong { font-size: 28px; font-weight: 600; }
+#matricula progress { width: 100%; }
+#matricula h2 .ajuda { font-weight: 400; }
+td input.nome { min-width: 240px; padding: 5px 8px; font-size: 13px; }
+td.onde { white-space: nowrap; }
+.conferencia { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.conferencia label { margin-left: auto; font-size: 13px; color: var(--muted); }
+.conferencia input[type="text"] { width: 140px; text-align: right; }
+.trecho { white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; font-family: var(--mono); font-size: 12.5px; color: var(--texto); }
+mark { background: var(--aviso-fundo); color: var(--aviso); border-radius: 3px; padding: 0 2px; font-weight: 600; }
+pre.texto-pagina { white-space: pre-wrap; max-height: 320px; overflow: auto; }
+@media (max-width: 860px) { .pagina { padding: 16px; } }
+
 /* ---------- telas menores ---------- */
 @media (max-width: 860px) {
   .layout { grid-template-columns: minmax(0, 1fr); padding: 16px; }

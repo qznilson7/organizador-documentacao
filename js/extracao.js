@@ -20,7 +20,7 @@ const GENERICAS = new Set([
   "atual", "frente", "verso", "copia", "reconhecido", "reconhecida", "novo", "nova", "antigo", "antiga",
   "final", "scan", "scanner", "documento", "doc", "assinado", "assinada",
 ]);
-// Relações (ex.: "esposa joao"): não dá para saber de quem é o documento.
+// Relações (ex.: "esposa pedro"): não dá para saber de quem é o documento.
 const RELACIONAIS = new Set(["esposa", "esposo", "marido", "mulher", "filho", "filha", "pai", "mae", "conjuge", "irmao", "irma", "socio"]);
 
 function limparToken(tok) {
@@ -67,7 +67,7 @@ export function extrairPessoaConteudo(texto) {
   return "";
 }
 
-/** "cnh - joao denczuk.pdf" -> "joao denczuk". Retorna "" se não houver um nome claro. */
+/** "cnh - pedro exemplo.pdf" -> "pedro exemplo". Retorna "" se não houver um nome claro. */
 export function pessoaDoArquivo(nomeArquivo) {
   const stem = semExtensao(nomeDoCaminho(nomeArquivo));
   const partes = stem.split(/\s+-\s+/).map((s) => s.trim()).filter(Boolean);

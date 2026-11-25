@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Organizar documentos</title>
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <svg class="logo" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <path d="M9 13l2 2 4-4"/>
+    </svg>
+    <div>
+      <h1>Organizador de Documentação</h1>
+      <p>Organize, renomeie e confira a documentação do cliente antes de enviar ao banco</p>
+    </div>
+  </div>
+  <div class="topo-acoes">
+    <span class="selo">Tudo roda no seu navegador. Nenhum arquivo é enviado para fora.</span>
+    <a class="botao voltar" href="index.html">&larr; Menu</a>
+  </div>
+</header>
+
+<main class="layout">
+
+  <aside class="painel" aria-label="Configuração">
+    <h2>Configuração</h2>
+
+    <label for="banco">Banco de destino</label>
+    <select id="banco"></select>
+    <p id="banco-resumo" class="ajuda"></p>
+    <div id="lembretes" class="lembretes" hidden>
+      <h3>Lembretes deste banco</h3>
+      <p class="ajuda">O sistema ainda não confere estes pontos sozinho.</p>
+      <ul></ul>
+    </div>
+
+    <div class="divisor"></div>
+
+    <h3>Leitura de imagens (OCR)</h3>
+    <p id="ocr-status" class="ajuda">Inicia só quando for preciso. Na primeira vez baixa o pacote de idioma português.</p>
+  </aside>
+
+  <section class="conteudo">
+
+    <div id="envio">
+      <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Escolher ou arrastar o ZIP do cliente">
+        <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+        </svg>
+        <p class="dz-titulo">Arraste aqui o ZIP do cliente</p>
+        <p class="dz-sub">ou clique para escolher o arquivo</p>
+        <p class="dz-sub">O ZIP deve ter a pasta do cliente com docs pessoais, docs terreno e NF.</p>
+        <input id="arquivo" type="file" accept=".zip,application/zip" hidden>
+      </div>
+      <div id="erro" class="caixa erro" role="alert" hidden></div>
+    </div>
+
+    <div id="processando" class="cartao" hidden>
+      <h2>Analisando documentos</h2>
+      <progress id="barra" max="100" value="0"></progress>
+      <p id="proc-texto" class="ajuda">Lendo o ZIP...</p>
+      <p id="proc-ocr" class="ajuda"></p>
+    </div>
+
+    <div id="resultado" hidden>
+
+      <div class="cartao cabecalho-cliente">
+        <div class="campo">
+          <label for="cliente">Nome do cliente (nome da pasta e do ZIP final)</label>
+          <input id="cliente" type="text" autocomplete="off">
+        </div>
+        <div id="chips" class="chips"></div>
+        <button id="novo" type="button" class="botao">Novo cliente</button>
+      </div>
+
+      <section class="cartao">
+        <h2><span class="num">1</span> Documentos identificados</h2>
+        <p class="ajuda">Se algum tipo estiver errado ou como "não identificado", corrija na coluna Tipo.</p>
+        <div class="tabela-rolagem">
+          <table id="tabela">
+            <thead>
+              <tr><th>Arquivo original</th><th>Tipo</th><th>Pessoa / detalhe</th><th>Novo nome</th><th>Confiança</th><th>Observação</th><th>Texto lido</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="duplicados"></div>
+      </section>
+
+      <section class="cartao">
+        <h2><span class="num">2</span> Validação para o banco</h2>
+        <div id="status" class="status"></div>
+        <div class="duas-colunas">
+          <div>
+            <h3>Obrigatórios</h3>
+            <ul id="lista-obrig" class="checklist"></ul>
+          </div>
+          <div>
+            <h3>Opcionais</h3>
+            <ul id="lista-opc" class="checklist"></ul>
+          </div>
+        </div>
+        <div id="avisos"></div>
+      </section>
+
+      <section class="cartao">
+        <h2><span class="num">3</span> Resultado</h2>
+        <details>
+          <summary>Ver como ficará a estrutura de pastas</summary>
+          <pre id="arvore"></pre>
+        </details>
+        <div class="acoes">
+          <button id="baixar-zip" type="button" class="botao principal">Baixar ZIP organizado</button>
+          <button id="baixar-csv" type="button" class="botao">Relatório (CSV)</button>
+          <button id="baixar-resumo" type="button" class="botao">Resumo da validação</button>
+        </div>
+      </section>
+
+    </div>
+  </section>
+</main>
+
+<footer class="rodape">Versão inicial. As regras de bancos e documentos ficam na pasta config/.</footer>
+
+<script src="lib/jszip/jszip.min.js"></script>
+<script src="lib/pdfjs/pdf.min.js"></script>
+<script src="lib/tesseract/tesseract.min.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

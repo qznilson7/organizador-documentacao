@@ -1,15 +1,33 @@
-# Organizador de Documentação de Clientes
+# Central de documentação
 
-Site em **HTML, CSS e JavaScript puros** (sem frameworks). Você arrasta o ZIP do cliente, escolhe o banco (**DLL** ou
-**Tarken**), e o sistema lê os documentos (PDF com texto, PDF escaneado e fotos), renomeia, organiza nas pastas,
-confere se o cliente está apto para o banco e devolve um ZIP com o nome do cliente.
+Site em **HTML, CSS e JavaScript puros** (sem frameworks). A página inicial é um **menu** com duas funcionalidades:
+
+1. **Organizar documentos**: você arrasta o ZIP do cliente, escolhe o banco (**DLL** ou **Tarken**), e o sistema lê os
+   documentos, renomeia, organiza nas pastas, confere o checklist do banco e devolve um ZIP com o nome do cliente.
+2. **Calcular hectares**: soma a área total (ITR ou CCIR) ou a área consolidada (CAR) e analisa matrículas.
 
 Tudo roda **dentro do navegador**: nenhum documento é enviado para servidor nenhum. As bibliotecas (ZIP, PDF, OCR e
 idioma português) estão na pasta `lib/`, então o site não depende de CDN.
 
-> Status: versão inicial, ainda **não testada em navegador**. Veja "Primeiro teste" abaixo.
+> Status: o organizador já funciona no GitHub. **Calcular hectares e a análise de matrícula ainda não foram testados.**
 
-## O que entra e o que sai
+## Calcular hectares
+
+| Opção | O que enviar | O que sai |
+|---|---|---|
+| Área total (ITR ou CCIR) | Todos os ITRs **ou** todos os CCIRs do cliente | Área total; com CCIR, os hectares de cada titular |
+| Área consolidada (CAR) | Todos os CARs | Área consolidada (inteira, mesmo com mais de um dono) |
+| Analisar matrícula | Uma matrícula por vez (PDF ou várias fotos) | Proprietários atuais, hectares e a página/registro onde achou |
+
+- Nas duas primeiras há **Áreas próprias** e **Áreas arrendadas**, cada uma com seu total.
+- Arquivo repetido ou o mesmo imóvel (CIB, código do imóvel ou registro do CAR) soma **uma vez só**. Documento do tipo
+  errado é recusado. A área pode ser corrigida na tabela. Relatório em CSV.
+- Valores lidos por OCR (como no CAR escaneado) ficam marcados: **confira no documento**.
+- A **análise da matrícula é uma sugestão**: ela separa os registros (R-1, AV-2...), interpreta vendas e saídas de área,
+  mostra o trecho onde achou cada dono e aponta ônus e pontos que não entendeu. Não substitui a análise da matrícula.
+  Partilhas, partes ideais e redações diferentes podem não ser entendidas.
+
+## Organizar documentos: o que entra e o que sai
 
 Entrada (como você organiza hoje). O **nome do cliente vem do nome do ZIP**:
 ```
@@ -61,10 +79,12 @@ Não precisa de internet. Para publicar para outras pessoas, veja o **GITHUB.md*
 
 ## Primeiro teste (nesta ordem)
 
-1. Abra `http://localhost:8000/testes/`: deve mostrar "Todos os 44 testes passaram".
-2. Abra `http://localhost:8000/` e confira se a tela aparece sem erros (F12 > Console).
-3. Envie um ZIP **fictício** com PDFs de texto. Depois um com foto/PDF escaneado (testa o OCR; a primeira vez demora um pouco).
-4. Baixe o ZIP organizado e confira as pastas e os nomes.
+1. Abra `http://localhost:8000/testes/`: deve mostrar "Todos os 63 testes passaram".
+2. Abra `http://localhost:8000/`: o menu deve aparecer; abra cada opção e confira se não há erros (F12 > Console).
+3. **Organizar documentos:** envie um ZIP de teste e confira as pastas e os nomes.
+4. **Calcular hectares:** envie ITRs/CCIRs e CARs e compare cada área com o documento.
+5. **Analisar matrícula:** envie uma matrícula e confira donos, hectares, página e registro. Se errar, abra
+   "Ver todo o texto lido" para ver o que o OCR enxergou.
 
 ## Ajustando sem mexer no código (pasta `config/`)
 
@@ -79,9 +99,17 @@ Depois de editar, recarregue a página (Ctrl+F5).
 ## Código
 
 ```
-index.html            a tela
+index.html            menu inicial
+organizar.html        organizar documentos
+hectares.html         calcular hectares e analisar matrícula
 css/estilo.css        o design (cores nas variáveis do :root)
-js/app.js             liga a tela ao núcleo
+js/hectaresApp.js     tela de hectares
+js/areas.js           leitura e soma das áreas (ITR, CCIR, CAR)
+js/areasLeitura.js    lê os arquivos da página de hectares (texto ou OCR)
+js/matricula.js       análise dos registros da matrícula
+js/matriculaApp.js    tela da análise de matrícula
+js/dom.js             funções de tela usadas em hectares
+js/app.js             tela do organizador
 js/analisador.js      fluxo: ZIP -> texto/OCR -> tipo
 js/zipLeitor.js       leitura do ZIP (JSZip)
 js/extrator.js        texto de PDF (pdf.js) e OCR (Tesseract.js)
@@ -112,7 +140,7 @@ memoria.md            tudo que é preciso lembrar do projeto
 
 ## Próximos passos sugeridos
 
-- Nomear por pessoa (ex.: `CNH - Joao.pdf`) e perfis separados (comprador, cônjuge, avalista, PJ).
+- Perfis separados no checklist (comprador, cônjuge, avalista, PJ).
 - Validar **datas/validade** dos documentos.
 - Conferir **nome e CPF** em todos os documentos.
 - Juntar frente e verso (fotos separadas) em um único PDF.

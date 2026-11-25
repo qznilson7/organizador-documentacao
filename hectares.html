@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calcular hectares</title>
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <svg class="logo" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 4h14a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-7a1 1 0 0 0-1 1v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/>
+      <path d="M4 8h2M4 12h3M4 16h2M8 4v2M12 4v3M16 4v2"/>
+    </svg>
+    <div>
+      <h1>Calcular hectares</h1>
+      <p>Soma a área das propriedades do cliente</p>
+    </div>
+  </div>
+  <div class="topo-acoes">
+    <span class="selo">Tudo roda no seu navegador. Nenhum arquivo é enviado para fora.</span>
+    <a class="botao voltar" href="index.html">&larr; Menu</a>
+  </div>
+</header>
+
+<main class="pagina">
+
+  <section class="cartao">
+    <h3>1. Cálculo</h3>
+    <div class="opcoes" role="group" aria-label="Cálculo">
+      <button type="button" class="botao" data-modo="total">Área total (ITR ou CCIR)</button>
+      <button type="button" class="botao" data-modo="consolidada">Área consolidada (CAR)</button>
+      <button type="button" class="botao" data-modo="matricula">Analisar matrícula</button>
+    </div>
+    <div id="bloco-posse">
+      <h3>2. Tipo de área</h3>
+      <div class="opcoes" role="group" aria-label="Tipo de área">
+        <button type="button" class="botao" data-posse="proprias">Áreas próprias</button>
+        <button type="button" class="botao" data-posse="arrendadas">Áreas arrendadas</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="matricula" class="conteudo" hidden>
+
+    <div id="mat-zona" class="dropzone" tabindex="0" role="button">
+      <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <p class="dz-titulo">Arraste a matrícula (todas as páginas)</p>
+      <p class="dz-sub">Um PDF ou várias fotos. A ordem das fotos segue o nome dos arquivos.</p>
+      <p class="dz-sub">Uma matrícula por vez.</p>
+      <input id="mat-arquivos" type="file" accept=".pdf,.jpg,.jpeg,.png,.bmp,.webp" multiple hidden>
+    </div>
+    <div id="mat-erro" class="caixa erro" role="alert" hidden></div>
+
+    <div id="mat-lendo" class="cartao" hidden>
+      <h2>Lendo a matrícula</h2>
+      <progress></progress>
+      <p id="mat-lendo-texto" class="ajuda">Abrindo o arquivo...</p>
+      <p id="mat-lendo-ocr" class="ajuda"></p>
+    </div>
+
+    <div id="mat-resultado" class="conteudo" hidden>
+      <div class="aviso-linha"><b>Sugestão do sistema.</b> Confira cada linha no documento antes de usar: não substitui a análise da matrícula.</div>
+
+      <section class="cartao">
+        <h2>Proprietários atuais <span id="mat-numero" class="ajuda"></span></h2>
+        <div class="tabela-rolagem">
+          <table>
+            <thead><tr><th>Nome</th><th>Hectares</th><th>Onde achou</th><th></th></tr></thead>
+            <tbody id="mat-donos"></tbody>
+          </table>
+        </div>
+        <div class="conferencia">
+          <button id="mat-adicionar" type="button" class="botao">Adicionar proprietário</button>
+          <label for="mat-area">Área atual da matrícula (ha)</label>
+          <input id="mat-area" type="text" inputmode="decimal">
+        </div>
+        <div id="mat-confere" class="status" aria-live="polite"></div>
+      </section>
+
+      <section class="cartao">
+        <h2>Pontos de atenção</h2>
+        <div id="mat-avisos" class="avisos"></div>
+      </section>
+
+      <section class="cartao">
+        <h2>Registros encontrados</h2>
+        <div class="tabela-rolagem">
+          <table>
+            <thead><tr><th>Registro</th><th>Página</th><th>O que é</th><th>De → para</th><th>Área</th><th></th></tr></thead>
+            <tbody id="mat-atos"></tbody>
+          </table>
+        </div>
+        <details>
+          <summary>Ver todo o texto lido, página por página</summary>
+          <div id="mat-textos"></div>
+        </details>
+      </section>
+
+      <div class="acoes">
+        <button id="mat-copiar" type="button" class="botao principal">Copiar resumo</button>
+        <button id="mat-relatorio" type="button" class="botao">Baixar relatório (CSV)</button>
+        <button id="mat-nova" type="button" class="botao">Nova matrícula</button>
+        <span id="mat-msg" class="ajuda" role="status"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="calculo" class="conteudo">
+
+    <div id="dropzone" class="dropzone" tabindex="0" role="button">
+      <svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 16V4m0 0l-4 4m4-4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <p class="dz-titulo" id="dz-titulo"></p>
+      <p class="dz-sub">ou clique para escolher. PDF ou foto, vários de uma vez.</p>
+      <input id="arquivos" type="file" accept=".pdf,.jpg,.jpeg,.png,.bmp,.webp" multiple hidden>
+    </div>
+
+    <div id="lendo" class="cartao" hidden>
+      <progress id="barra" max="100" value="0"></progress>
+      <p id="lendo-texto" class="ajuda"></p>
+      <p id="lendo-ocr" class="ajuda"></p>
+    </div>
+
+    <section id="resultado" class="cartao" hidden>
+      <div class="tabela-rolagem">
+        <table>
+          <thead>
+            <tr><th>Somar</th><th>Arquivo</th><th>Imóvel</th><th id="col-area">Área (ha)</th><th>Proprietários / titulares</th><th>Situação</th><th></th></tr>
+          </thead>
+          <tbody id="linhas"></tbody>
+        </table>
+      </div>
+      <p class="ajuda dica">A área pode ser corrigida direto na tabela. O total é recalculado na hora.</p>
+      <div id="avisos" class="avisos"></div>
+      <div id="por-pessoa" hidden>
+        <h3>Hectares de cada titular</h3>
+        <table><tbody></tbody></table>
+      </div>
+      <div class="acoes"><button id="limpar" type="button" class="botao">Limpar esta lista</button></div>
+    </section>
+
+    <section class="totais" aria-live="polite">
+      <div class="metrica" id="m-proprias"><span></span><strong>0,00</strong> ha</div>
+      <div class="metrica" id="m-arrendadas"><span></span><strong>0,00</strong> ha</div>
+    </section>
+    <p class="ajuda">Soma das duas: <strong id="soma-geral">0,00</strong> ha</p>
+
+    <div class="acoes">
+      <button id="relatorio" type="button" class="botao principal">Baixar relatório (CSV)</button>
+      <button id="copiar" type="button" class="botao">Copiar total</button>
+      <span id="msg" class="ajuda" role="status"></span>
+    </div>
+
+  </div>
+</main>
+
+<footer class="rodape">Confira sempre as áreas nos documentos antes de usar o resultado.</footer>
+
+<script src="lib/pdfjs/pdf.min.js"></script>
+<script src="lib/tesseract/tesseract.min.js"></script>
+<script type="module" src="js/hectaresApp.js"></script>
+</body>
+</html>

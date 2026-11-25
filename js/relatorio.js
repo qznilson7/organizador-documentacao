@@ -15,6 +15,11 @@ export function csvBlob(planejados) {
       d.removido ? d.duplicadoDe : "",
     ]);
   }
+  return csvDeLinhas(linhas);
+}
+
+/** Monta um CSV (separado por ";") a partir de uma lista de linhas. */
+export function csvDeLinhas(linhas) {
   const texto = linhas.map((l) => l.map(campo).join(";")).join("\r\n");
   // BOM no início: o Excel abre com os acentos corretos
   return new Blob(["﻿" + texto], { type: "text/csv;charset=utf-8" });

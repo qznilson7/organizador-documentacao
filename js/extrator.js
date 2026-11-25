@@ -1,5 +1,7 @@
 // Extração de texto: texto nativo de PDF (pdf.js) e OCR no navegador (Tesseract.js).
-// As bibliotecas pdfjsLib e Tesseract são carregadas pelo index.html.
+// As bibliotecas pdfjsLib e Tesseract são carregadas pela página HTML.
+
+import { montarLinhas } from "./util.js";
 
 const LADO_MAX_IMAGEM = 2400;
 const LADO_MIN_IMAGEM = 1500;
@@ -46,11 +48,60 @@ export async function textoPdf(dados, maxPaginas = MAX_PAGINAS_TEXTO) {
   }
 }
 
+/** Como textoPdf, mas remontando as linhas pela posição na página (usado para ler tabelas). */
+export async function textoPdfLayout(dados, maxPaginas = MAX_PAGINAS_TEXTO) {
+  const pdf = await abrirPdf(dados);
+  try {
+    const partes = [];
+    for (let i = 1; i <= Math.min(pdf.numPages, maxPaginas); i++) {
+      const pagina = await pdf.getPage(i);
+      const conteudo = await pagina.getTextContent();
+      partes.push(montarLinhas(conteudo.items));
+      pagina.cleanup();
+    }
+    return partes.join("\n");
+  } finally {
+    await pdf.destroy();
+  }
+}
+
 function novoCanvas(largura, altura) {
   const c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(largura));
   c.height = Math.max(1, Math.round(altura));
   return c;
+}
+
+async function desenharPagina(pagina, dpi) {
+  const base = pagina.getViewport({ scale: 1 });
+  let escala = dpi / 72;
+  const maior = Math.max(base.width, base.height) * escala;
+  if (maior > LADO_MAX_PAGINA_PDF) escala *= LADO_MAX_PAGINA_PDF / maior;
+  const viewport = pagina.getViewport({ scale: escala });
+  const canvas = novoCanvas(viewport.width, viewport.height);
+  await pagina.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  return canvas;
+}
+
+/**
+ * Percorre um PDF página por página (sem desenhar todas de uma vez, para não estourar a memória).
+ * aoPagina({ numero, total, texto, desenhar }) — `desenhar()` devolve o canvas da página.
+ * Retorna quantas páginas o arquivo tem.
+ */
+export async function percorrerPdf(dados, maxPaginas, dpi, aoPagina) {
+  const pdf = await abrirPdf(dados);
+  try {
+    const total = Math.min(pdf.numPages, maxPaginas);
+    for (let i = 1; i <= total; i++) {
+      const pagina = await pdf.getPage(i);
+      const conteudo = await pagina.getTextContent();
+      await aoPagina({ numero: i, total, texto: montarLinhas(conteudo.items), desenhar: () => desenharPagina(pagina, dpi) });
+      pagina.cleanup();
+    }
+    return pdf.numPages;
+  } finally {
+    await pdf.destroy();
+  }
 }
 
 /** Converte PDF (primeiras páginas) ou imagem em canvas prontos para OCR. */
@@ -61,14 +112,7 @@ export async function renderizarPaginas(dados, ext, maxPaginas, dpi) {
       const canvases = [];
       for (let i = 1; i <= Math.min(pdf.numPages, maxPaginas); i++) {
         const pagina = await pdf.getPage(i);
-        const base = pagina.getViewport({ scale: 1 });
-        let escala = dpi / 72;
-        const maior = Math.max(base.width, base.height) * escala;
-        if (maior > LADO_MAX_PAGINA_PDF) escala *= LADO_MAX_PAGINA_PDF / maior;
-        const viewport = pagina.getViewport({ scale: escala });
-        const canvas = novoCanvas(viewport.width, viewport.height);
-        await pagina.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-        canvases.push(canvas);
+        canvases.push(await desenharPagina(pagina, dpi));
         pagina.cleanup();
       }
       return canvases;
